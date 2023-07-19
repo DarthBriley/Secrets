@@ -5,7 +5,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
-const sha512 = require("js-sha512");
+const encrypt = require("mongoose-encryption");
 
 mongoose.connect(
   "mongodb+srv://" +
@@ -16,6 +16,10 @@ mongoose.connect(
 );
 
 const userSchema = new mongoose.Schema({ email: String, password: String });
+userSchema.plugin(encrypt, {
+  secret: process.env.secret,
+  encryptedFields: ["password"],
+});
 const User = mongoose.model("User", userSchema);
 
 const app = express();
@@ -38,7 +42,7 @@ app.post("/login", async function (req, res) {
     email: req.body.username,
   }).exec();
   if (foundUser) {
-    if (foundUser.password === sha512(req.body.password)) {
+    if (foundUser.password === req.body.password) {
       res.render("secrets");
     } else {
       res.send("Password is wrong for " + req.body.username + ".");
@@ -55,7 +59,7 @@ app.get("/register", function (req, res) {
 app.post("/register", async function (req, res) {
   const newUser = new User({
     email: req.body.username,
-    password: sha512(req.body.password),
+    password: req.body.password,
   });
   await newUser
     .save()
