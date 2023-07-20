@@ -5,8 +5,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
-const bcrypt = require("bcrypt");
-const saltRounds = 10;
+const sha512 = require("js-sha512");
 
 mongoose.connect(
   "mongodb+srv://" +
@@ -39,17 +38,11 @@ app.post("/login", async function (req, res) {
     email: req.body.username,
   }).exec();
   if (foundUser) {
-    await bcrypt.compare(
-      req.body.password,
-      foundUser.password,
-      function (err, result) {
-        if (result === true) {
-          res.render("secrets");
-        } else {
-          res.send("Password is wrong for " + req.body.username + ".");
-        }
-      }
-    );
+    if (foundUser.password === sha512(req.body.password)) {
+      res.render("secrets");
+    } else {
+      res.send("Password is wrong for " + req.body.username + ".");
+    }
   } else {
     res.send("Email Not found : " + req.body.username + ".");
   }
@@ -60,10 +53,9 @@ app.get("/register", function (req, res) {
 });
 
 app.post("/register", async function (req, res) {
-  const hashPass = await bcrypt.compare(req.body.password, saltRounds);
   const newUser = new User({
     email: req.body.username,
-    password: hashPass,
+    password: sha512(req.body.password),
   });
   await newUser
     .save()
